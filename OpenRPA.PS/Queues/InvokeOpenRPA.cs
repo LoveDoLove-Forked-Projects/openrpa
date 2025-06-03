@@ -44,7 +44,6 @@ namespace OpenRPA.PS
             Console.Write(message);
             Console.SetCursorPosition(origCol, origRow);
         }
-        // readonly System.Threading.AutoResetEvent workItemsWaiting = new System.Threading.AutoResetEvent(false);
         protected override void ProcessRecord()
         {
             try
@@ -54,14 +53,46 @@ namespace OpenRPA.PS
                     WriteError(new ErrorRecord(new Exception("Missing WorkflowId or Filename"), "", ErrorCategory.NotSpecified, null));
                     return;
                 }
+                if(string.IsNullOrEmpty(Filename))
+                {
+                    Filename = WorkflowId;
+                }
                 if (Object != null)
                 {
+                    // json = Object.ConvertToJson();
                     json = Object.toJson();
                 }
                 if (string.IsNullOrEmpty(json)) json = "{}";
                 JObject tmpObject = JObject.Parse(json);
 
                 var param = tmpObject.ToObject<Dictionary<string, object>>();
+                foreach (var key in param.Keys.ToList())
+                {
+                    if (param[key] is JArray jArray)
+                    {
+                        var objectList = jArray.ToObject<List<object>>();
+                        if (objectList.All(o => o is string))
+                        {
+                            param[key] = objectList.Cast<string>().ToArray();
+                        }
+                        else if (objectList.All(o => o is int))
+                        {
+                            param[key] = objectList.Cast<int>().ToArray();
+                        }
+                        else if (objectList.All(o => o is bool))
+                        {
+                            param[key] = objectList.Cast<bool>().ToArray();
+                        }
+                        else if (objectList.All(o => o is double))
+                        {
+                            param[key] = objectList.Cast<double>().ToArray();
+                        }
+                        else
+                        {
+                            param[key] = objectList;
+                        }
+                    }
+                }
                 WriteProgress(new ProgressRecord(0, "Invoking", "Invoking " + WorkflowId));
                 //try
                 //{
